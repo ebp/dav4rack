@@ -132,7 +132,7 @@ module DAV4Rack
     
     # Does the parent resource exist?
     def parent_exists?
-      parent.exist?
+      parent && parent.exist?
     end
     
     # Return the creation time.
