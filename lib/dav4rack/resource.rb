@@ -115,6 +115,10 @@ module DAV4Rack
       result
     end
     
+    def add_propfind_headers
+      # Just an extension point
+    end
+
     # If this is a collection, return the child resources.
     def children
       NotImplemented

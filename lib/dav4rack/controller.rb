@@ -172,6 +172,9 @@ module DAV4Rack
           names = request_document.xpath("//#{ns}propfind/#{ns}prop").children.find_all{|n|n.element?}.map{|n|n.name}
           names = resource.property_names if names.empty?
         end
+
+        resource.add_propfind_headers
+
         multistatus do |xml|
           find_resources.each do |resource|
             xml.response do
