@@ -416,6 +416,15 @@ module DAV4Rack
         end
       end
       
+      if Nokogiri.jruby?
+        # Temporary workaround for difference with JRuby/CRuby:
+        #   https://github.com/sparklemotion/nokogiri/issues/779
+        ns = doc.doc.children.first.namespace
+        doc.doc.xpath('//*').each do |xe|
+          xe.namespace = ns
+        end
+      end
+
       response.body = doc.to_xml(:save_with => Nokogiri::XML::Node::SaveOptions::AS_XML)
       response["Content-Type"] = 'text/xml; charset="utf-8"'
       response["Content-Length"] = response.body.size.to_s
