@@ -1,3 +1,4 @@
+require 'thread'
 require 'uuidtools'
 require 'dav4rack/http_status'
 
@@ -19,8 +20,16 @@ module DAV4Rack
     attr_reader :path, :options, :public_path, :request, :response
     attr_accessor :user
     @@blocks = {}
+    @@method_alias_lock = Mutex.new
     
     class << self
+      attr_reader :methods_aliased
+
+      def inherited(base)
+        # Reset for each subclass
+        base.instance_variable_set(:@methods_aliased, false)
+        super
+      end
       
       # This lets us define a bunch of before and after blocks that are
       # either called before all methods on the resource, or only specific
@@ -85,11 +94,20 @@ module DAV4Rack
       @default_timeout = options[:default_timeout] || 60
       @user = @options[:user] || request.ip
       setup if respond_to?(:setup)
-      public_methods(false).each do |method|
-        next if @skip_alias.include?(method.to_sym) || method[0,4] == 'DAV_' || method[0,5] == '_DAV_'
-        self.class.class_eval "alias :'_DAV_#{method}' :'#{method}'"
-        self.class.class_eval "undef :'#{method}'"
+
+      unless self.class.methods_aliased
+        @@method_alias_lock.synchronize do
+          unless self.class.methods_aliased
+            public_methods(false).each do |method|
+              next if @skip_alias.include?(method.to_sym) || method[0,4] == 'DAV_' || method[0,5] == '_DAV_'
+              self.class.class_eval "alias :'_DAV_#{method}' :'#{method}'"
+              self.class.class_eval "undef :'#{method}'"
+            end
+            self.class.instance_variable_set(:@methods_aliased, true)
+          end
+        end
       end
+
       @runner = lambda do |class_sym, kind, method_name|
         [:'__all__', method_name.to_sym].each do |sym|
           if(@@blocks[class_sym] && @@blocks[class_sym][kind] && @@blocks[class_sym][kind][sym])
