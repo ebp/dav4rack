@@ -137,6 +137,9 @@ module DAV4Rack
       # Just an extension point
     end
 
+    def append_info_to_payload(payload)
+    end
+
     # If this is a collection, return the child resources.
     def children
       NotImplemented

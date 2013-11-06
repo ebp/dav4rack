@@ -19,8 +19,15 @@ module DAV4Rack
         start = Time.now
         request = Rack::Request.new(env)
         response = Rack::Response.new
+        log_payload = {
+          ip:         request.ip,
+          method:     request.request_method,
+          path:       request.path,
+          controller: 'webdav',
+          action:     (request.request_method || '').downcase
+        }
 
-        Logger.info "Processing WebDAV request: #{request.path} (for #{request.ip} at #{Time.now}) [#{request.request_method}]"
+        Logger.debug "Processing WebDAV request: #{request.path} (for #{request.ip} at #{Time.now}) [#{request.request_method}]"
         
         controller = nil
         begin
@@ -36,6 +43,8 @@ module DAV4Rack
           response.status = status.code
         end
 
+        controller.append_info_to_payload(log_payload) if controller
+
         # Strings in Ruby 1.9 are no longer enumerable.  Rack still expects the response.body to be
         # enumerable, however.
         
@@ -49,11 +58,16 @@ module DAV4Rack
         buf = request.body.read(8192) while buf
 
         Logger.debug "Response in string form. Outputting contents: \n#{response.body}" if response.body.is_a?(String)
-        Logger.info "Completed in: #{((Time.now.to_f - start.to_f) * 1000).to_i} ms | #{response.status} [#{request.url}]"
+
+        log_payload[:duration] = ((Time.now.to_f - start.to_f) * 1000).to_i
+        log_payload[:status]   = response.status
+        Logger.info "[#{request.ip}] #{request.request_method} #{request.path} - #{response.status} in #{log_payload[:duration]}ms", log_payload
         
         response.body.is_a?(Rack::File) ? response.body.call(env) : response.finish
       rescue Exception => e
-        Logger.error "WebDAV Error: #{e}\n#{e.backtrace.join("\n")}"
+        log_payload[:duration] ||= ((Time.now.to_f - start.to_f) * 1000).to_i
+        log_payload[:error] = ([e.message] + e.backtrace).join("; ")
+        Logger.error "[#{request.ip}] #{request.request_method} #{request.path} - #{response.status} in #{log_payload[:duration]}ms - ERROR: #{log_payload[:error]}", log_payload
         raise e
       end
     end

@@ -285,6 +285,10 @@ module DAV4Rack
       end
       raise Unauthorized unless authed
     end
+
+    def append_info_to_payload(payload)
+      resource.append_info_to_payload(payload) if resource
+    end
     
     # ************************************************************
     # private methods

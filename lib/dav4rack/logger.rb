@@ -4,7 +4,15 @@ module DAV4Rack
   # This is a simple wrapper for the Logger class. It allows easy access 
   # to log messages from the library.
   class Logger
+    LOGSTASH_EVENT_FIELDS = %w(@timestamp @tags @type @source @fields message).freeze
+
     class << self
+      attr_writer :formatter
+
+      def formatter
+        @formatter ||= :default
+      end
+
       # args:: Arguments for Logger -> [path, level] (level is optional) or a Logger instance
       # Set the path to the log file.
       def set(*args)
@@ -20,10 +28,47 @@ module DAV4Rack
         end
       end
       
-      def method_missing(*args)
+      def method_missing(method, message, payload = nil)
         if(defined? @@logger)
-          @@logger.send *args
+          if formatter == :logstash
+            payload ||= {}
+            payload[:message] = message
+            event = format_for_logstash(method, payload)
+            @@logger.send method, event.to_hash.to_json
+          else
+            @@logger.send method, message
+          end
         end
+      end
+
+      def format_for_logstash(severity, message)
+        data = message
+        if data.is_a?(String) && data[0] == '{'
+          data = (JSON.parse(message) rescue nil) || message
+        end
+
+        event = case data
+                when LogStash::Event
+                  data.clone
+                when Hash
+                  event_data = {
+                    "@tags" => [],
+                    "@fields" => {},
+                    "@timestamp" => Time.now
+                  }
+                  LOGSTASH_EVENT_FIELDS.each do |field_name|
+                    if field_data = data.delete(field_name)
+                      event_data[field_name] = field_data
+                    end
+                  end
+                  event_data["@fields"].merge!(data)
+                  LogStash::Event.new(event_data)
+                when String
+                  LogStash::Event.new("message" => data, "@timestamp" => time)
+                end
+
+        event['severity'] ||= severity
+        event
       end
     end
   end
