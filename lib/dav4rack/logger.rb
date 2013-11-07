@@ -4,8 +4,6 @@ module DAV4Rack
   # This is a simple wrapper for the Logger class. It allows easy access 
   # to log messages from the library.
   class Logger
-    LOGSTASH_EVENT_FIELDS = %w(@timestamp @tags @type @source @fields message).freeze
-
     class << self
       attr_writer :formatter
 
@@ -52,19 +50,12 @@ module DAV4Rack
                   data.clone
                 when Hash
                   event_data = {
-                    "@tags" => [],
-                    "@fields" => {},
+                    "@tags"      => [],
                     "@timestamp" => Time.now
-                  }
-                  LOGSTASH_EVENT_FIELDS.each do |field_name|
-                    if field_data = data.delete(field_name)
-                      event_data[field_name] = field_data
-                    end
-                  end
-                  event_data["@fields"].merge!(data)
+                  }.merge(event_data)
                   LogStash::Event.new(event_data)
                 when String
-                  LogStash::Event.new("message" => data, "@timestamp" => time)
+                  LogStash::Event.new("message" => data, "@timestamp" => Time.now)
                 end
 
         event['severity'] ||= severity
