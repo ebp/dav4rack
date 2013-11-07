@@ -52,7 +52,7 @@ module DAV4Rack
                   event_data = {
                     "@tags"      => [],
                     "@timestamp" => Time.now
-                  }.merge(event_data)
+                  }.merge(data)
                   LogStash::Event.new(event_data)
                 when String
                   LogStash::Event.new("message" => data, "@timestamp" => Time.now)
