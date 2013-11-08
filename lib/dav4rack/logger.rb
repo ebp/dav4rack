@@ -50,7 +50,6 @@ module DAV4Rack
                   data.clone
                 when Hash
                   event_data = {
-                    "@tags"      => [],
                     "@timestamp" => Time.now
                   }.merge(data)
                   LogStash::Event.new(event_data)
