@@ -61,7 +61,8 @@ module DAV4Rack
 
         log_payload[:duration] = ((Time.now.to_f - start.to_f) * 1000).to_i
         log_payload[:status]   = response.status
-        Logger.info "[#{request.ip}] #{request.request_method} #{request.path} - #{response.status} in #{log_payload[:duration]}ms", log_payload
+        # [200] GET /dav/path (webdav#propfind)
+        Logger.info "[#{response.status}] #{request.request_method} #{request.path} (#{log_payload[:controller]}##{log_payload[:action]})", log_payload
         
         response.body.is_a?(Rack::File) ? response.body.call(env) : response.finish
       rescue Exception => e
