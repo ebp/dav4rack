@@ -4,6 +4,9 @@ module DAV4Rack
   
   class Handler
     include DAV4Rack::HTTPStatus    
+
+    REQUEST_ID_KEY = 'HTTP_X_REQUEST_ID'.freeze
+
     def initialize(options={})
       @options = options.dup
       unless(@options[:resource_class])
@@ -20,6 +23,7 @@ module DAV4Rack
         request = Rack::Request.new(env)
         response = Rack::Response.new
         log_payload = {
+          request_id: env[REQUEST_ID_KEY],
           ip:         request.ip,
           method:     request.request_method,
           path:       request.path,
