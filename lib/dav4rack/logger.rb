@@ -1,9 +1,11 @@
 require 'logger'
 
 module DAV4Rack
-  # This is a simple wrapper for the Logger class. It allows easy access 
+  # This is a simple wrapper for the Logger class. It allows easy access
   # to log messages from the library.
   class Logger
+    LEVELS = %w(info debug warn fatal error).freeze
+
     class << self
       attr_writer :formatter
 
@@ -14,7 +16,7 @@ module DAV4Rack
       # args:: Arguments for Logger -> [path, level] (level is optional) or a Logger instance
       # Set the path to the log file.
       def set(*args)
-        if(%w(info debug warn fatal).all?{|meth| args.first.respond_to?(meth)})
+        if(LEVELS.all?{|meth| args.first.respond_to?(meth)})
           @@logger = args.first
         elsif(args.first.respond_to?(:to_s) && !args.first.to_s.empty?)
           @@logger = ::Logger.new(args.first.to_s, 'weekly')
@@ -25,18 +27,28 @@ module DAV4Rack
           @@logger.level = args[1]
         end
       end
-      
-      def method_missing(method, message, payload = nil)
-        if(defined? @@logger)
-          if formatter == :logstash
+
+      LEVELS.each do |lvl|
+        define_method(lvl) do |*args|
+          message, payload, _ = *args
+          case formatter
+          when :logfmt
+            payload ||= {}
+            payload[:msg] = message
+            message = format_for_logfmt(lvl, payload)
+          when :logstash
             payload ||= {}
             payload[:message] = message
-            event = format_for_logstash(method, payload)
-            @@logger.send method, event.to_hash.to_json
-          else
-            @@logger.send method, message
+            message = format_for_logstash(lvl, payload)
           end
+          @@logger.send(lvl, message)
         end
+      end
+
+      private
+
+      def format_for_logfmt(severity, payload)
+        payload
       end
 
       def format_for_logstash(severity, message)
@@ -58,7 +70,7 @@ module DAV4Rack
                 end
 
         event['severity'] ||= severity
-        event
+        event.to_hash.to_json
       end
     end
   end
